@@ -1,12 +1,13 @@
-import Control.Applicative (Applicative (liftA2))
+import Control.Applicative (Applicative (liftA2), liftA3)
 import Control.Monad (ap, join)
-import Data.Char (isNumber)
+import Data.Char (isNumber, toLower, toUpper)
 import Data.Function (on)
-import Data.List (groupBy, inits, sort, tails, transpose)
+import Data.List (groupBy, inits, isPrefixOf, isSuffixOf, sort, tails, transpose)
 import Data.Maybe (mapMaybe)
 import Data.Monoid (All (All, getAll))
 import GHC.IO (unsafePerformIO)
 import Text.Read (readMaybe)
+import Text.Regex.TDFA
 
 {-# NOINLINE input #-}
 input = unsafePerformIO . readFile . ("./inputs/" ++) . (++ ".txt")
@@ -46,7 +47,7 @@ verify = compare <*> tail
  where
   sorted = ((||) <$> and <*> all not) .: zipWith (>)
   compare = getAll .: (All .: sorted <> (All . and) .: zipWith inRange)
-  inRange = getAll .: ((All . (>= 1)) .: difference <> (All . (<= 3)) .: difference)
+  inRange = flip elem [1 .. 3] .: difference
 
 countTrue = length . filter id
 
@@ -58,3 +59,32 @@ solve2a = countTrue . map (verify . readInts) . lines
 solve2b = countTrue . map (any verify . (<$> removes) . flip id . readInts) . lines
  where
   removes = map (take <> drop . (+ 1)) [0 .. 10]
+
+-- >>> solve2b $ input "2"
+-- 337
+
+solve3a = sum . map (product . readInts) . occurences
+ where
+  occurences = getAllTextMatches . (=~ pattern) :: String -> [String]
+  pattern = "mul\\([0-9]+,[0-9]+\\)"
+
+dropEnd = (. (reverse . inits)) . flip (!!)
+
+-- >>> snagg "a"
+-- ["A","a"]
+
+solve4a = sum . map count . sequence transformations . lines
+ where
+  diagonal = transpose . zipWith drop [0 ..]
+  diag = transpose . reverse . zipWith (++) pyramid . reverse
+  pyramid = map (`replicate` '.') [0 ..]
+  count = sum . map (length . filter ("XMAS" `isPrefixOf`) . tails)
+
+  transformations =
+    liftA2
+      (.)
+      [id, map reverse]
+      [id, transpose, diag, reverse . diag . reverse]
+
+-- >>> solve4a $ input "4"
+-- 2633
